@@ -5,6 +5,7 @@ from Quartz import *
 from AppKit import NSImage, NSZeroSize
 from PIL import Image
 import os, os.path
+import time
 
 from errors import WindowException, NotImplementedException
 from point import Point
@@ -57,3 +58,8 @@ class LowLevelApi:
 				if not bytesA[x, y] == bytesB[x, y]:
 					return False
 		return True
+	
+	def activateWindow(self):
+		app = NSRunningApplication.runningApplicationWithProcessIdentifier_(self.window[kCGWindowOwnerPID])
+		app.activateWithOptions_(NSApplicationActivateIgnoringOtherApps)
+		time.sleep(0.05)

@@ -1,87 +1,73 @@
 #! /usr/bin/env python
 # -*- coding: UTF-8 -*-
 
-import pprint
+import random
 
-from lowlevel import LowLevelApi
+from grabber import Grabber
+from consts import *
 from point import Point
-
-FIELD_SIZE = 9
-CELL_SIZE = 32
-
-class Grabber:
-	def __init__(self):
-		self.api = LowLevelApi('Minesweeper')
-		self.assets = self.api.loadAssets()
-
-	def getLocalOffset(self):
-		return Point(0, 22)
-
-	def getOffset(self):
-		return self.getLocalOffset() + self.api.offset
-
-	def getField(self):
-		offset = self.getLocalOffset()
-		snapshot = self.api.getSnapshot()
-		cells = [[None for _ in range(FIELD_SIZE)] for _ in range(FIELD_SIZE)]
-		for x in range(FIELD_SIZE):
-			for y in range(FIELD_SIZE):
-				coords = Point(CELL_SIZE * x, CELL_SIZE * y)
-				cell = self.subimage(snapshot, coords)
-				if self.compare(cell, 'empty'):
-					cells[y][x] = '?'
-				elif self.compare(cell, '0'):
-					cells[y][x] = '0'
-				elif self.compare(cell, '1'):
-					cells[y][x] = '1'
-				elif self.compare(cell, '2'):
-					cells[y][x] = '2'
-				elif self.compare(cell, '3'):
-					cells[y][x] = '3'
-				elif self.compare(cell, '4'):
-					cells[y][x] = '4'
-				elif self.compare(cell, '5'):
-					cells[y][x] = '5'
-				elif self.compare(cell, '6'):
-					cells[y][x] = '6'
-				elif self.compare(cell, '7'):
-					cells[y][x] = '7'
-				elif self.compare(cell, '8'):
-					cells[y][x] = '8'
-				elif self.compare(cell, 'mine') or self.compare(cell, 'bang'):
-					cells[y][x] = 'M'
-				elif self.compare(cell, 'flag'):
-					cells[y][x] = '+'
-				else:
-					cells[y][x] = '#'
-					cell.save('test/test{}{}.png'.format(x, y))
-		return cells
-
-	def subimage(self, image, point, size = Point(CELL_SIZE, CELL_SIZE)):
-		point = point + self.getLocalOffset()
-		rect = (point.x, point.y, point.x + size.x, point.y + size.y)
-		result = image.crop(rect)
-		result.load()
-		return result
-
-	def compare(self, image, sample):
-		is0 = (sample + '@0') in self.assets and self.api.isImagesEqual(image, self.assets[sample + '@0'])
-		is1 = (sample + '@1') in self.assets and self.api.isImagesEqual(image, self.assets[sample + '@1'])
-		return is0 or is1
+from mouse import Mouse
 
 class Game:
 	def __init__(self):
 		self.grabber = Grabber()
-		
+		self.turn = 0
+		self.cellOffset = Point(16, 16)
+	
 	def printField(self, field):
-		pprint.pprint(field)
+		for y in range(FIELD_SIZE):
+			print '[ ' + '  '.join(field[y]) + ' ]'
+	
+	def clickCell(self, cell):
+		point = Point(cell.x * CELL_SIZE, cell.y * CELL_SIZE)
+		Mouse.click(self.grabber.getOffset() + point + self.cellOffset)
 	
 	def makeTurn(self):
+		self.grabber.api.activateWindow()
+		self.turn += 1
+		print '== Turn {} =='.format(self.turn)
+		
 		field = self.grabber.getField()
 		self.printField(field)
+		
+		if len(self.getCellsByType('#', field)):
+			print '[w] Unknown cells. Check it!'
+			return False
+		
+		hiddenCells = self.getCellsByType('?', field)
+		if len(hiddenCells) == FIELD_SIZE * FIELD_SIZE:
+			print '[i] All cells are hidden. Clicking randomly=)'
+			randomCell = hiddenCells[int(len(hiddenCells) * random.random())]
+			self.clickCell(randomCell)
+			return True
+			
+		for cell in self.getCellsByType('1', field):
+			neighbours = self.getNeighbours(cell)
+			
+		print '[i] Don’t know what to do=('
+		return False
+	
+	def run(self):
+		while self.makeTurn():
+			pass
+	
+	def getNeighbours(self, cell):
+		cells = []
+		for x in (cell.x - 1, cell.x, cell.x + 1):
+			for y in (cell.y - 1, cell.y, cell.y + 1):
+				if x > 0 and x < FIELD_SIZE and y > 0 and y < FIELD_SIZE and not (x == cell.x and y == cell.y):
+					cells.append(Point(x, y))
+		return cell
+	
+	def getCellsByType(self, type, field):
+		cells = []
+		for x in range(FIELD_SIZE):
+			for y in range(FIELD_SIZE):
+				if field[y][x] == type:
+					cells.append(Point(x, y))
+		return cells
 
 if __name__ == '__main__':
 	game = Game()
-	game.makeTurn()
-
+	game.run()
 
