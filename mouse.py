@@ -38,5 +38,5 @@ class Mouse:
 		time.sleep(0.01)
 		Mouse.press(point, kCGEventRightMouseDown)
 		time.sleep(0.01)
-		Mouse.release(point, kCGEventRightMousUp)
+		Mouse.release(point, kCGEventRightMouseUp)
 		time.sleep(0.01)

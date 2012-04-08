@@ -58,7 +58,7 @@ class LowLevelApi:
 				if not bytesA[x, y] == bytesB[x, y]:
 					return False
 		return True
-	
+
 	def activateWindow(self):
 		app = NSRunningApplication.runningApplicationWithProcessIdentifier_(self.window[kCGWindowOwnerPID])
 		app.activateWithOptions_(NSApplicationActivateIgnoringOtherApps)

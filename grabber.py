@@ -48,6 +48,8 @@ class Grabber:
 					cells[y][x] = 'M'
 				elif self.compare(cell, 'flag'):
 					cells[y][x] = '+'
+				elif self.compare(cell, 'win'):
+					cells[y][x] = '!'
 				else:
 					cells[y][x] = '#'
 					cell.save('test/test{}{}.png'.format(x, y))
