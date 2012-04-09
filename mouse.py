@@ -27,16 +27,12 @@ class Mouse:
 	
 	@staticmethod
 	def click(point):
-		time.sleep(0.01)
 		Mouse.press(point)
-		time.sleep(0.01)
 		Mouse.release(point)
-		time.sleep(0.01)
+		time.sleep(0.025)
 	
 	@staticmethod
 	def rightclick(point):
-		time.sleep(0.01)
 		Mouse.press(point, kCGEventRightMouseDown)
-		time.sleep(0.01)
 		Mouse.release(point, kCGEventRightMouseUp)
-		time.sleep(0.01)
+		time.sleep(0.025)

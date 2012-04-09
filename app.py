@@ -35,10 +35,11 @@ class Game:
 		field = self.grabber.getField()
 		self.printField(field)
 		
-		if len(self.getCellsByType('!', field)):
+		mines = self.getCellsByType('M', field)
+		if len(self.getCellsByType('!', field)) and not len(mines):
 			print '[i] Win! All your base are belong to us!'
 			return False
-		elif len(self.getCellsByType('M', field)):
+		elif len(mines):
 			print '[i] BANG! Game Over..'
 			return False
 		
@@ -60,7 +61,7 @@ class Game:
 				hiddenNeighbours = [item for item in neighbours if field[item.y][item.x] == '?']
 				flaggedNeighbours = [item for item in neighbours if field[item.y][item.x] == '+']
 				if len(hiddenNeighbours) and len(hiddenNeighbours) == (i - len(flaggedNeighbours)):
-					print '[i] Flagging:', hiddenNeighbours[0]
+					print '[i] Flagging:', hiddenNeighbours
 					for nb in hiddenNeighbours:
 						self.clickCell(nb, True)
 					return True
@@ -82,8 +83,11 @@ class Game:
 	
 	def run(self):
 		self.grabber.api.activateWindow()
-		while self.makeTurn():
-			time.sleep(0.1)
+		try:
+			while self.makeTurn():
+				time.sleep(0.15)
+		except KeyboardInterrupt:
+			print '[i] Exit'
 	
 	def getNeighbours(self, cell):
 		cells = []
