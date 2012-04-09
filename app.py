@@ -12,12 +12,14 @@ from mouse import Mouse
 class Game:
 	def __init__(self):
 		self.grabber = Grabber()
+		self.fieldSize = self.grabber.fieldSize
+		print '[i] Field size:', self.fieldSize
 		self.turn = 0
 		self.cellOffset = Point(16, 16)
 	
 	def printField(self, field):
-		for y in range(FIELD_SIZE):
-			print '[ ' + '  '.join(field[y]) + ' ]'
+		for y in range(self.fieldSize.y):
+			print '[ ' + ' '.join(field[y]) + ' ]'
 	
 	def clickCell(self, cell, rightButton = False):
 		point = Point(cell.x * CELL_SIZE, cell.y * CELL_SIZE)
@@ -27,7 +29,6 @@ class Game:
 			Mouse.click(self.grabber.getOffset() + point + self.cellOffset)
 	
 	def makeTurn(self):
-		self.grabber.api.activateWindow()
 		self.turn += 1
 		print '== Iteration {} =='.format(self.turn)
 		
@@ -46,7 +47,7 @@ class Game:
 			return False
 		
 		hiddenCells = self.getCellsByType('?', field)
-		if len(hiddenCells) == FIELD_SIZE * FIELD_SIZE:
+		if len(hiddenCells) == self.fieldSize.x * self.fieldSize.y:
 			print '[i] All cells are hidden. Clicking randomly=)'
 			randomCell = hiddenCells[int(len(hiddenCells) * random.random())]
 			self.clickCell(randomCell)
@@ -54,15 +55,15 @@ class Game:
 		
 		for i in (1, 2, 3, 4, 5, 6, 7, 8):
 			cells = self.getCellsByType(str(i), field)
-			# print '[d] \'{}\': {}'.format(i, cells)
 			for cell in cells:
 				neighbours = self.getNeighbours(cell)
 				hiddenNeighbours = [item for item in neighbours if field[item.y][item.x] == '?']
 				flaggedNeighbours = [item for item in neighbours if field[item.y][item.x] == '+']
 				if len(hiddenNeighbours) and len(hiddenNeighbours) == (i - len(flaggedNeighbours)):
 					print '[i] Flagging:', hiddenNeighbours[0]
-					self.clickCell(hiddenNeighbours[0], True)
-					return True	
+					for nb in hiddenNeighbours:
+						self.clickCell(nb, True)
+					return True
 				elif len(flaggedNeighbours) == i and len(hiddenNeighbours):
 					print '[i] Clicking neighbours because of max flags:', hiddenNeighbours
 					for nb in hiddenNeighbours:
@@ -80,6 +81,7 @@ class Game:
 		return False
 	
 	def run(self):
+		self.grabber.api.activateWindow()
 		while self.makeTurn():
 			time.sleep(0.1)
 	
@@ -87,14 +89,14 @@ class Game:
 		cells = []
 		for x in (cell.x - 1, cell.x, cell.x + 1):
 			for y in (cell.y - 1, cell.y, cell.y + 1):
-				if x >= 0 and x < FIELD_SIZE and y >= 0 and y < FIELD_SIZE and not (x == cell.x and y == cell.y):
+				if x >= 0 and x < self.fieldSize.x and y >= 0 and y < self.fieldSize.y and not (x == cell.x and y == cell.y):
 					cells.append(Point(x, y))
 		return cells
 	
 	def getCellsByType(self, type, field):
 		cells = []
-		for y in range(FIELD_SIZE):
-			for x in range(FIELD_SIZE):
+		for y in range(self.fieldSize.y):
+			for x in range(self.fieldSize.x):
 				if field[y][x] == type:
 					cells.append(Point(x, y))
 		return cells
@@ -102,4 +104,3 @@ class Game:
 if __name__ == '__main__':
 	game = Game()
 	game.run()
-

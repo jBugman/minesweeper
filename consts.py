@@ -1,6 +1,7 @@
 #! /usr/bin/env python
 # -*- coding: UTF-8 -*-
 
-FIELD_SIZE = 9
-CELL_SIZE = 32
 TITLE = 'Minesweeper'
+CELL_SIZE = 32
+HEADER_HEIGHT = 22
+FOOTER_HEIGHT = 32

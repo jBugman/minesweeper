@@ -9,9 +9,10 @@ class Grabber:
 	def __init__(self):
 		self.api = LowLevelApi(TITLE)
 		self.assets = self.api.loadAssets()
+		self.fieldSize = Point(int(self.api.size.x / CELL_SIZE), int((self.api.size.y - HEADER_HEIGHT - FOOTER_HEIGHT) / CELL_SIZE))
 
 	def getLocalOffset(self):
-		return Point(0, 22)
+		return Point(0, HEADER_HEIGHT)
 
 	def getOffset(self):
 		return self.getLocalOffset() + self.api.offset
@@ -19,9 +20,9 @@ class Grabber:
 	def getField(self):
 		offset = self.getLocalOffset()
 		snapshot = self.api.getSnapshot()
-		cells = [[None for _ in range(FIELD_SIZE)] for _ in range(FIELD_SIZE)]
-		for x in range(FIELD_SIZE):
-			for y in range(FIELD_SIZE):
+		cells = [[None for _ in range(self.fieldSize.x)] for _ in range(self.fieldSize.y)]
+		for x in range(self.fieldSize.x):
+			for y in range(self.fieldSize.y):
 				coords = Point(CELL_SIZE * x, CELL_SIZE * y)
 				cell = self.subimage(snapshot, coords)
 				if self.compare(cell, 'empty'):
