@@ -28,6 +28,11 @@ class Game:
 		else:
 			Mouse.click(self.grabber.getOffset() + point + self.cellOffset)
 	
+	def resetField(self):
+		print '[i] Blocked state. Restaring game'
+		restartButton = Point(50, self.fieldSize.y * CELL_SIZE + 16)
+		Mouse.click(self.grabber.getOffset() + restartButton)
+	
 	def makeTurn(self):
 		self.turn += 1
 		print '== Iteration {} =='.format(self.turn)
@@ -37,11 +42,19 @@ class Game:
 		
 		mines = self.getCellsByType('M', field)
 		if len(self.getCellsByType('!', field)) and not len(mines):
-			print '[i] Win! All your base are belong to us!'
-			return False
+			if self.turn == 1:
+				self.resetField()
+				return True
+			else:
+				print '[i] Win! All your base are belong to us!'
+				return False
 		elif len(mines):
-			print '[i] BANG! Game Over..'
-			return False
+			if self.turn == 1:
+				self.resetField()
+				return True
+			else:
+				print '[i] BANG! Game Over..'
+				return False
 		
 		if len(self.getCellsByType('#', field)):
 			print '[w] Unknown cells. Check it!'
