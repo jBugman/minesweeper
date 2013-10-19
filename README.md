@@ -1,8 +1,3 @@
-# Minesweeper
+Plays [Minesweeper](https://itunes.apple.com/ru/app/minesweeper!/id410759890?l=en&mt=12).
 
-Robot playing _Minesweeper_ — game from App Store (or its free version — Minesweeper 101)
-
-Mac OS X only. Requires Python 2.7.1+
-
-## Dependencies
-1. PIL (Python Image Library)
+Mac OS X only. Uses PyObjC, Quartz and PIL.
