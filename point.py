@@ -1,7 +1,6 @@
-#! /usr/bin/env python
 # -*- coding: UTF-8 -*-
-
 import copy
+
 
 class Point:
     x = 0
@@ -13,7 +12,7 @@ class Point:
 
     def __str__(self):
         return '({0}, {1})'.format(self.x, self.y)
-    
+
     def __repr__(self):
         return '({0}, {1})'.format(self.x, self.y)
 

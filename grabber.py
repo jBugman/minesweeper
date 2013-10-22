@@ -1,9 +1,8 @@
-#! /usr/bin/env python
 # -*- coding: UTF-8 -*-
-
 from lowlevel import LowLevelApi
 from point import Point
 from consts import *
+
 
 class Grabber:
     def __init__(self):
@@ -56,7 +55,7 @@ class Grabber:
                     cell.save('test/test{}{}.png'.format(x, y))
         return cells
 
-    def subimage(self, image, point, size = Point(CELL_SIZE, CELL_SIZE)):
+    def subimage(self, image, point, size=Point(CELL_SIZE, CELL_SIZE)):
         point = point + self.getLocalOffset()
         rect = (point.x, point.y, point.x + size.x, point.y + size.y)
         result = image.crop(rect)

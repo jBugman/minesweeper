@@ -1,14 +1,14 @@
-#! /usr/bin/env python
 # -*- coding: UTF-8 -*-
+import os
+import time
 
 from Quartz import *
 from AppKit import NSImage, NSZeroSize
 from PIL import Image
-import os, os.path
-import time
 
 from errors import WindowException, NotImplementedException
 from point import Point
+
 
 class LowLevelApi:
     def __init__(self, title):
