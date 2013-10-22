@@ -1,27 +1,31 @@
 # -*- coding: UTF-8 -*-
 from lowlevel import LowLevelApi
 from point import Point
-from consts import *
+from consts import TITLE, CELL_SIZE, HEADER_HEIGHT, FOOTER_HEIGHT
+import log
 
 
 class Grabber:
     def __init__(self):
-        self.api = LowLevelApi(TITLE)
-        self.assets = self.api.loadAssets()
-        self.fieldSize = Point(int(self.api.size.x / CELL_SIZE), int((self.api.size.y - HEADER_HEIGHT - FOOTER_HEIGHT) / CELL_SIZE))
+        self.logger = log.get_logger(__name__)
+        self.logger.debug('Initialising grabber')
 
-    def getLocalOffset(self):
+        self.api = LowLevelApi(TITLE)
+        self.assets = self.api.load_assets()
+        self.field_size = Point(int(self.api.size.x / CELL_SIZE), int((self.api.size.y - HEADER_HEIGHT - FOOTER_HEIGHT) / CELL_SIZE))
+
+    def _get_local_offset(self):
         return Point(0, HEADER_HEIGHT)
 
-    def getOffset(self):
-        return self.getLocalOffset() + self.api.offset
+    def get_offset(self):
+        return self._get_local_offset() + self.api.offset
 
-    def getField(self):
-        offset = self.getLocalOffset()
-        snapshot = self.api.getSnapshot()
-        cells = [[None for _ in range(self.fieldSize.x)] for _ in range(self.fieldSize.y)]
-        for x in range(self.fieldSize.x):
-            for y in range(self.fieldSize.y):
+    def grab_field(self):
+        offset = self._get_local_offset()
+        snapshot = self.api.get_snapshot()
+        cells = [[None for _ in range(self.field_size.x)] for _ in range(self.field_size.y)]
+        for x in range(self.field_size.x):
+            for y in range(self.field_size.y):
                 coords = Point(CELL_SIZE * x, CELL_SIZE * y)
                 cell = self.subimage(snapshot, coords)
                 if self.compare(cell, 'empty'):
@@ -56,13 +60,13 @@ class Grabber:
         return cells
 
     def subimage(self, image, point, size=Point(CELL_SIZE, CELL_SIZE)):
-        point = point + self.getLocalOffset()
+        point = point + self._get_local_offset()
         rect = (point.x, point.y, point.x + size.x, point.y + size.y)
         result = image.crop(rect)
         result.load()
         return result
 
     def compare(self, image, sample):
-        is0 = (sample + '@0') in self.assets and self.api.isImagesEqual(image, self.assets[sample + '@0'])
-        is1 = (sample + '@1') in self.assets and self.api.isImagesEqual(image, self.assets[sample + '@1'])
+        is0 = (sample + '@0') in self.assets and self.api.is_images_equal(image, self.assets[sample + '@0'])
+        is1 = (sample + '@1') in self.assets and self.api.is_images_equal(image, self.assets[sample + '@1'])
         return is0 or is1

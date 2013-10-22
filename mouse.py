@@ -1,29 +1,33 @@
 # -*- coding: UTF-8 -*-
 import time
 
-from Quartz import *
+import Quartz
+
+
+def _send_tap_event(event):
+    Quartz.CGEventPost(Quartz.kCGHIDEventTap, event)
 
 
 class Mouse:
     @staticmethod
-    def press(point, button=kCGEventLeftMouseDown):
-        event = CGEventCreateMouseEvent(None, button, point.asTuple(), 0)
-        CGEventPost(kCGHIDEventTap, event)
+    def press(point, button=Quartz.kCGEventLeftMouseDown):
+        event = Quartz.CGEventCreateMouseEvent(None, button, point.as_tuple(), 0)
+        _send_tap_event(event)
 
     @staticmethod
-    def release(point, button=kCGEventLeftMouseUp):
-        event = CGEventCreateMouseEvent(None, button, point.asTuple(), 0)
-        CGEventPost(kCGHIDEventTap, event)
+    def release(point, button=Quartz.kCGEventLeftMouseUp):
+        event = Quartz.CGEventCreateMouseEvent(None, button, point.as_tuple(), 0)
+        _send_tap_event(event)
 
     @staticmethod
     def move(point):
-        move = CGEventCreateMouseEvent(None, kCGEventMouseMoved, point.asTuple(), 0)
-        CGEventPost(kCGHIDEventTap, move)
+        move = CGEventCreateMouseEvent(None, Quartz.kCGEventMouseMoved, point.as_tuple(), 0)
+        _send_tap_event(event)
 
     @staticmethod
     def position():
-        loc = NSEvent.mouseLocation()
-        return Point(loc.x, CGDisplayPixelsHigh(0) - loc.y)
+        loc = Quartz.NSEvent.mouseLocation()
+        return Point(loc.x, Quartz.CGDisplayPixelsHigh(0) - loc.y)
 
     @staticmethod
     def click(point):
@@ -33,6 +37,6 @@ class Mouse:
 
     @staticmethod
     def rightclick(point):
-        Mouse.press(point, kCGEventRightMouseDown)
-        Mouse.release(point, kCGEventRightMouseUp)
+        Mouse.press(point, Quartz.kCGEventRightMouseDown)
+        Mouse.release(point, Quartz.kCGEventRightMouseUp)
         time.sleep(0.025)

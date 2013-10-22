@@ -2,31 +2,35 @@
 import os
 import time
 
-from Quartz import *
+import Quartz
 from AppKit import NSImage, NSZeroSize
 from PIL import Image
 
-from errors import WindowException, NotImplementedException
+import errors
 from point import Point
+import log
 
 
 class LowLevelApi:
     def __init__(self, title):
-        windowList = CGWindowListCopyWindowInfo(kCGWindowListOptionAll, kCGNullWindowID)
+        self.logger = log.get_logger(__name__)
+
+        self.logger.debug('Finding game window')
         self.window = None
-        for window in windowList:
-            if kCGWindowName in window and window[kCGWindowName] == title:
+        windows = Quartz.CGWindowListCopyWindowInfo(Quartz.kCGWindowListOptionAll, Quartz.kCGNullWindowID)
+        for window in windows:
+            if Quartz.kCGWindowName in window and window[Quartz.kCGWindowName] == title:
                 self.window = window
                 break
         if self.window:
-            self.windowId = window[kCGWindowNumber]
-            bounds = self.window[kCGWindowBounds]
+            self.window_id = window[Quartz.kCGWindowNumber]
+            bounds = self.window[Quartz.kCGWindowBounds]
             self.size = Point(int(bounds['Width']), int(bounds['Height']))
             self.offset = Point(int(bounds['X']), int(bounds['Y']))
         else:
-            raise WindowException('Can not find window')
+            raise errors.WindowException
 
-    def loadAssets(self):
+    def load_assets(self):
         assets = {}
         for filename in os.listdir('assets'):
             if filename.endswith('.png'):
@@ -34,11 +38,11 @@ class LowLevelApi:
                 assets[os.path.splitext(filename)[0]] = image
         return assets
 
-    def getSnapshot(self):
-        windowImage = CGWindowListCreateImageFromArray(CGRectNull, [self.windowId], kCGWindowImageBoundsIgnoreFraming)
-        nsImage = NSImage.alloc().initWithCGImage_size_(windowImage, NSZeroSize)
-        tiffRepresentation = nsImage.TIFFRepresentation()
-        image = Image.fromstring('RGBA', self.size.asTuple(), tiffRepresentation)
+    def get_snapshot(self):
+        window_image = Quartz.CGWindowListCreateImageFromArray(Quartz.CGRectNull, [self.window_id], Quartz.kCGWindowImageBoundsIgnoreFraming)
+        ns_image = Quartz.NSImage.alloc().initWithCGImage_size_(window_image, Quartz.NSZeroSize)
+        tiff_representation = ns_image.TIFFRepresentation()
+        image = Image.fromstring('RGBA', self.size.as_tuple(), tiff_representation)
         image.load()
         b1 = (0, 1, 2, self.size.y)
         r1 = image.crop(b1)
@@ -50,16 +54,17 @@ class LowLevelApi:
         image.paste(r2, (0, 0, self.size.x - 2, self.size.y))
         return image
 
-    def isImagesEqual(self, imageA, imageB):
-        bytesA = imageA.load()
-        bytesB = imageB.load()
-        for x in range(imageA.size[0]):
-            for y in range(imageA.size[1]):
-                if not bytesA[x, y] == bytesB[x, y]:
+    def is_images_equal(self, image_a, image_b):
+        bytes_a = image_a.load()
+        bytes_b = image_b.load()
+        for x in range(image_a.size[0]):
+            for y in range(image_a.size[1]):
+                if not bytes_a[x, y] == bytes_b[x, y]:
                     return False
         return True
 
-    def activateWindow(self):
-        app = NSRunningApplication.runningApplicationWithProcessIdentifier_(self.window[kCGWindowOwnerPID])
-        app.activateWithOptions_(NSApplicationActivateIgnoringOtherApps)
-        time.sleep(0.05)
+    def activate_window(self):
+        self.logger.debug('Activating window')
+        app = Quartz.NSRunningApplication.runningApplicationWithProcessIdentifier_(self.window[Quartz.kCGWindowOwnerPID])
+        app.activateWithOptions_(Quartz.NSApplicationActivateIgnoringOtherApps)
+        time.sleep(0.2)
