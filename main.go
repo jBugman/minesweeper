@@ -5,6 +5,13 @@ package main
 #cgo LDFLAGS: -framework CoreGraphics -framework Foundation
 #import <Foundation/NSObjCRuntime.h>
 #import <CoreGraphics/CoreGraphics.h>
+#import <CoreFoundation/CoreFoundation.h>
+
+CFArrayRef makeCFArrayRef(CGWindowID windowID) {
+	CGWindowID ids[] = {windowID};
+	return CFArrayCreate(NULL, (void *)ids, 1, NULL);
+}
+
 */
 import "C"
 import (
@@ -17,9 +24,10 @@ import (
 	"unsafe"
 )
 
-func takeScreenShot() image.Image {
+func takeScreenShot(windowID int) image.Image {
 	const flags = C.kCGWindowImageDefault | C.kCGWindowImageShouldBeOpaque | C.kCGWindowImageNominalResolution
-	screenShot := C.CGWindowListCreateImage(C.CGRectNull, C.kCGWindowListOptionOnScreenOnly, C.kCGNullWindowID, flags)
+	windowList := C.makeCFArrayRef(C.CGWindowID(windowID))
+	screenShot := C.CGWindowListCreateImageFromArray(C.CGRectNull, windowList, flags)
 
 	rawBytes := C.CGDataProviderCopyData(C.CGImageGetDataProvider(screenShot))
 	pointer := C.CFDataGetBytePtr(rawBytes)
@@ -83,15 +91,13 @@ func (dict CFDictionary) CGRectForKey(key C.CFStringRef) C.CGRect {
 	return rect
 }
 
-const targetAppTitle = "Code"
-
 type windowMeta struct {
 	id     int
 	title  string
 	bounds C.CGRect
 }
 
-func findWindow() (windowMeta, error) {
+func findWindow(targetAppTitle string) (windowMeta, error) {
 	windows := C.CGWindowListCopyWindowInfo(C.kCGWindowListOptionOnScreenOnly, C.kCGNullWindowID)
 	var i C.CFIndex
 	var info windowMeta
@@ -114,14 +120,14 @@ func saveImage(img image.Image) {
 }
 
 func main() {
+	const targetAppTitle = "Minesweeper"
 	t := time.Now()
-	// C.wrappedListWindows()
-	winMeta, err := findWindow()
+	winMeta, err := findWindow(targetAppTitle)
 	if err != nil {
 		log.Fatal(err)
 	}
 	log.Println(winMeta)
-	screenShot := takeScreenShot() // C.kCGNullWindowID
+	screenShot := takeScreenShot(winMeta.id)
 	log.Println(time.Since(t))
 
 	saveImage(screenShot)
