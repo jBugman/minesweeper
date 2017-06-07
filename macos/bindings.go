@@ -12,13 +12,17 @@ CFArrayRef makeSingletonIntCFArrayRef(int i) {
 	return CFArrayCreate(NULL, (void *)c_array, 1, NULL);
 }
 
-CGPoint getPoint(CGRect rect) {
+CGPoint getCGRectOrigin(CGRect rect) {
 	return rect.origin;
 }
 
 */
 import "C"
-import "unsafe"
+import (
+	"unsafe"
+
+	"./keycode"
+)
 
 // WrapIntAsCFArrayRef returns new CFArrayRef with a provided integer as a single element
 func WrapIntAsCFArrayRef(i int) C.CFArrayRef {
@@ -99,6 +103,15 @@ func (cg coreGraphics) CreateMouseEvent(mouseType C.CGEventType, position C.CGPo
 	return C.CGEventCreateMouseEvent(nil, mouseType, position, button)
 }
 
+// CreateKeyboardEvent is a binding for CGEventCreateKeyboardEvent
+func (cg coreGraphics) CreateKeyboardEvent(keyCode keycode.Code, isKeyDown bool) C.CGEventRef {
+	return C.CGEventCreateKeyboardEvent(nil, C.CGKeyCode(keyCode), C._Bool(isKeyDown))
+}
+
+func releaseEvent(event C.CGEventRef) {
+	C.CFRelease(C.CFTypeRef(event))
+}
+
 // CGRect wraps C struct
 type CGRect struct {
 	rect C.CGRect
@@ -106,10 +119,10 @@ type CGRect struct {
 
 // X returns origin x of a CGRect
 func (r CGRect) X() int {
-	return int(C.getPoint(r.rect).x)
+	return int(C.getCGRectOrigin(r.rect).x)
 }
 
 // Y returns origin y of a CGRect
 func (r CGRect) Y() int {
-	return int(C.getPoint(r.rect).y)
+	return int(C.getCGRectOrigin(r.rect).y)
 }

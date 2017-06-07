@@ -19,6 +19,8 @@ import (
 	"image"
 	"time"
 	"unsafe"
+
+	"./keycode"
 )
 
 // WindowMeta contains some info about Quartz window
@@ -71,7 +73,10 @@ func TakeScreenshot(windowID int) image.Image { // TODO handle errors
 	return &image.RGBA{Pix: pixels, Stride: bytesPerRow, Rect: image.Rect(0, 0, width, height)}
 }
 
-const mouseClickDuration = 75 * time.Millisecond
+const (
+	mouseClickDuration = 75 * time.Millisecond
+	keyPressDuration   = 20 * time.Millisecond
+)
 
 // LeftClick does that it sounds
 func LeftClick(x, y int) {
@@ -87,12 +92,37 @@ func genericClick(downEventType, upEventType C.CGEventType, button C.CGMouseButt
 	point := C.CGPointMake(C.CGFloat(x), C.CGFloat(y))
 	downEvent := CoreGraphics.CreateMouseEvent(downEventType, point, button)
 	upEvent := CoreGraphics.CreateMouseEvent(upEventType, point, button)
-	defer C.CFRelease(C.CFTypeRef(downEvent))
-	defer C.CFRelease(C.CFTypeRef(upEvent))
+	defer releaseEvent(downEvent)
+	defer releaseEvent(upEvent)
 	C.CGEventPost(C.kCGHIDEventTap, downEvent)
 	time.Sleep(mouseClickDuration)
 	C.CGEventPost(C.kCGHIDEventTap, upEvent)
 	time.Sleep(mouseClickDuration)
+}
+
+// KeyPress emulates keyboard key press
+func KeyPress(keyCode keycode.Code) {
+	downEvent := CoreGraphics.CreateKeyboardEvent(keyCode, true)
+	upEvent := CoreGraphics.CreateKeyboardEvent(keyCode, false)
+	defer releaseEvent(downEvent)
+	defer releaseEvent(upEvent)
+	C.CGEventPost(C.kCGHIDEventTap, downEvent)
+	time.Sleep(keyPressDuration)
+	C.CGEventPost(C.kCGHIDEventTap, upEvent)
+	time.Sleep(keyPressDuration)
+}
+
+// KeyPressWithModifier emulates keyboard press with modifier key
+func KeyPressWithModifier(keyCode, modifierKeyCode keycode.Code) {
+	modifierDownEvent := CoreGraphics.CreateKeyboardEvent(modifierKeyCode, true)
+	modifierUpEvent := CoreGraphics.CreateKeyboardEvent(modifierKeyCode, false)
+	defer releaseEvent(modifierDownEvent)
+	defer releaseEvent(modifierUpEvent)
+	C.CGEventPost(C.kCGHIDEventTap, modifierDownEvent)
+	time.Sleep(keyPressDuration)
+	KeyPress(keyCode)
+	C.CGEventPost(C.kCGHIDEventTap, modifierUpEvent)
+	time.Sleep(keyPressDuration)
 }
 
 // ActivateWindow brings window of a selected app to front
