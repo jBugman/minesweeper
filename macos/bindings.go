@@ -6,10 +6,14 @@ package macos
 #import <CoreGraphics/CoreGraphics.h>
 #import <CoreFoundation/CoreFoundation.h>
 
-// Need to do in on a C side as you can't pass ** from Cgo
+// Need to do it on a C side as you can't pass ** from Cgo
 CFArrayRef makeSingletonIntCFArrayRef(int i) {
 	int c_array[] = {i};
 	return CFArrayCreate(NULL, (void *)c_array, 1, NULL);
+}
+
+CGPoint getPoint(CGRect rect) {
+	return rect.origin;
 }
 
 */
@@ -88,4 +92,24 @@ func (dict CFDictionary) CGRectForKey(key C.CFStringRef) C.CGRect { // TODO hand
 	var rect C.CGRect
 	C.CGRectMakeWithDictionaryRepresentation(dictRepresentation.ptr, &rect)
 	return rect
+}
+
+// CreateMouseEvent is a binding for CGEventCreateMouseEvent
+func (cg coreGraphics) CreateMouseEvent(mouseType C.CGEventType, position C.CGPoint, button C.CGMouseButton) C.CGEventRef {
+	return C.CGEventCreateMouseEvent(nil, mouseType, position, button)
+}
+
+// CGRect wraps C struct
+type CGRect struct {
+	rect C.CGRect
+}
+
+// X returns origin x of a CGRect
+func (r CGRect) X() int {
+	return int(C.getPoint(r.rect).x)
+}
+
+// Y returns origin y of a CGRect
+func (r CGRect) Y() int {
+	return int(C.getPoint(r.rect).y)
 }

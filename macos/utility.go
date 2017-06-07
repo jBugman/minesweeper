@@ -2,21 +2,31 @@ package macos
 
 /*
 #cgo CFLAGS: -x objective-c
-#cgo LDFLAGS: -framework CoreGraphics
+#cgo LDFLAGS: -framework CoreGraphics -framework AppKit
 #import <CoreGraphics/CoreGraphics.h>
+#import <AppKit/AppKit.h>
+
+// Wrapped Objective-C code for window activation
+void activateWindow(int ownerPID) {
+	NSRunningApplication* app = [NSRunningApplication runningApplicationWithProcessIdentifier: ownerPID];
+	[app activateWithOptions: NSApplicationActivateIgnoringOtherApps];
+}
+
 */
 import "C"
 import (
 	"errors"
 	"image"
+	"time"
 	"unsafe"
 )
 
 // WindowMeta contains some info about Quartz window
 type WindowMeta struct {
-	ID     int
-	Title  string
-	Bounds C.CGRect
+	ID       int
+	OwnerPID int
+	Title    string
+	Bounds   CGRect
 }
 
 // FindWindow returns if of a first window of target app
@@ -29,8 +39,9 @@ func FindWindow(targetAppTitle string) (WindowMeta, error) {
 		owner := window.StringForKey(CoreGraphics.WindowOwnerName)
 		if owner == targetAppTitle {
 			info.Title = window.StringForKey(CoreGraphics.WindowName)
-			info.ID = window.IntForKey(C.kCGWindowNumber)        // TODO export constant?
-			info.Bounds = window.CGRectForKey(C.kCGWindowBounds) // TODO export constant?
+			info.OwnerPID = window.IntForKey(C.kCGWindowOwnerPID)        // TODO export constant?
+			info.ID = window.IntForKey(C.kCGWindowNumber)                // TODO export constant?
+			info.Bounds = CGRect{window.CGRectForKey(C.kCGWindowBounds)} // TODO export constant?
 			return info, nil
 		}
 	}
@@ -52,10 +63,40 @@ func TakeScreenshot(windowID int) image.Image { // TODO handle errors
 	height := int(C.CGImageGetHeight(screenShot))
 	bytesPerRow := int(C.CGImageGetBytesPerRow(screenShot))
 
-	// manually fix BGRA -> RGBA
+	// Manually fix BGRA -> RGBA
 	for i := 0; i < length; i += 4 {
 		pixels[i], pixels[i+2] = pixels[i+2], pixels[i]
 	}
 
 	return &image.RGBA{Pix: pixels, Stride: bytesPerRow, Rect: image.Rect(0, 0, width, height)}
+}
+
+const mouseClickDuration = 75 * time.Millisecond
+
+// LeftClick does that it sounds
+func LeftClick(x, y int) {
+	genericClick(C.kCGEventLeftMouseDown, C.kCGEventLeftMouseUp, C.kCGMouseButtonLeft, x, y)
+}
+
+// RightClick does that it sounds
+func RightClick(x, y int) {
+	genericClick(C.kCGEventRightMouseDown, C.kCGEventRightMouseUp, C.kCGMouseButtonRight, x, y)
+}
+
+func genericClick(downEventType, upEventType C.CGEventType, button C.CGMouseButton, x, y int) {
+	point := C.CGPointMake(C.CGFloat(x), C.CGFloat(y))
+	downEvent := CoreGraphics.CreateMouseEvent(downEventType, point, button)
+	upEvent := CoreGraphics.CreateMouseEvent(upEventType, point, button)
+	defer C.CFRelease(C.CFTypeRef(downEvent))
+	defer C.CFRelease(C.CFTypeRef(upEvent))
+	C.CGEventPost(C.kCGHIDEventTap, downEvent)
+	time.Sleep(mouseClickDuration)
+	C.CGEventPost(C.kCGHIDEventTap, upEvent)
+	time.Sleep(mouseClickDuration)
+}
+
+// ActivateWindow brings window of a selected app to front
+func ActivateWindow(windowOwnerPID int) {
+	C.activateWindow(C.int(windowOwnerPID))
+	time.Sleep(200 * time.Millisecond)
 }
