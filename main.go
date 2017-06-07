@@ -5,10 +5,8 @@ import (
 	"image/png"
 	"log"
 	"os"
-	"time"
 
-	"./macos"
-	"./macos/keycode"
+	"./engine"
 )
 
 func saveImage(img image.Image) {
@@ -16,28 +14,18 @@ func saveImage(img image.Image) {
 	png.Encode(outFile, img)
 }
 
-const targetAppTitle = "Minesweeper"
-
 func main() {
-	winMeta, err := macos.FindWindow(targetAppTitle)
+	bot := engine.NewEngine()
+	err := bot.Start()
 	if err != nil {
 		log.Fatal(err)
 	}
-	log.Println(winMeta)
 
-	macos.ActivateWindow(winMeta.OwnerPID)
-
-	t := time.Now()
-	screenShot := macos.TakeScreenshot(winMeta.ID)
-	log.Println(time.Since(t))
-
-	// Start new game
-	macos.KeyPressWithModifier(keycode.KeyN, keycode.KeyCommand)
+	bot.StartGame()
+	img := bot.GrabScreen()
+	saveImage(img)
 	// Click in some random points
-	macos.LeftClick(winMeta.Bounds.X()+100, winMeta.Bounds.Y()+200)
-	macos.RightClick(winMeta.Bounds.X()+250, winMeta.Bounds.Y()+250)
-	macos.LeftClick(winMeta.Bounds.X()+300, winMeta.Bounds.Y()+500)
-
-	_ = screenShot
-	// saveImage(screenShot)
+	bot.LeftClick(10, 10)
+	bot.RightClick(0, 2)
+	bot.RightClick(3, 2)
 }
