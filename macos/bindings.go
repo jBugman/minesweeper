@@ -12,10 +12,6 @@ CFArrayRef makeSingletonIntCFArrayRef(int i) {
 	return CFArrayCreate(NULL, (void *)c_array, 1, NULL);
 }
 
-CGPoint getCGRectOrigin(CGRect rect) {
-	return rect.origin;
-}
-
 */
 import "C"
 import (
@@ -119,10 +115,20 @@ type CGRect struct {
 
 // X returns origin x of a CGRect
 func (r CGRect) X() int {
-	return int(C.getCGRectOrigin(r.rect).x)
+	return int(r.rect.origin.x)
 }
 
 // Y returns origin y of a CGRect
 func (r CGRect) Y() int {
-	return int(C.getCGRectOrigin(r.rect).y)
+	return int(r.rect.origin.y)
+}
+
+// Width of a CGRect
+func (r CGRect) Width() uint {
+	return uint(r.rect.size.width)
+}
+
+// Height of a CGRect
+func (r CGRect) Height() uint {
+	return uint(r.rect.size.height)
 }
