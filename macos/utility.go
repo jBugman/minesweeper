@@ -51,7 +51,7 @@ func FindWindow(targetAppTitle string) (WindowMeta, error) {
 }
 
 // TakeScreenshot takes screenshot of a window with provided ID
-func TakeScreenshot(windowID int) image.Image { // TODO handle errors
+func TakeScreenshot(windowID int) *image.RGBA { // TODO handle errors
 	const flags = C.kCGWindowImageDefault | C.kCGWindowImageShouldBeOpaque | C.kCGWindowImageNominalResolution | C.kCGWindowImageBoundsIgnoreFraming
 	windowList := WrapIntAsCFArrayRef(windowID)
 	screenShot := C.CGWindowListCreateImageFromArray(C.CGRectNull, windowList, flags)

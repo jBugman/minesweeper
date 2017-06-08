@@ -1,18 +1,10 @@
 package main
 
 import (
-	"image"
-	"image/png"
 	"log"
-	"os"
 
 	"./engine"
 )
-
-func saveImage(img image.Image) {
-	outFile, _ := os.Create("test.png")
-	png.Encode(outFile, img)
-}
 
 func main() {
 	bot := engine.NewEngine()
@@ -22,10 +14,12 @@ func main() {
 	}
 
 	bot.StartGame()
-	img := bot.GrabScreen()
-	saveImage(img)
+
+	bot.PrintField()
 	// Click in some random points
-	bot.LeftClick(10, 10)
+	bot.LeftClick(6, 6)
 	bot.RightClick(0, 2)
 	bot.RightClick(3, 2)
+
+	bot.UpdateField()
 }
