@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"bytes"
 	"fmt"
 	"image"
 	"image/png"
@@ -22,11 +23,44 @@ const (
 // Tile represents possible tile values
 type Tile uint8
 
+// Special Tile values
 const (
 	OpenSpace Tile = 0
 	Flag      Tile = 32
+	Bomb      Tile = 64
 	Unknown   Tile = 255
 )
+
+func (t Tile) String() string {
+	switch t {
+	case 0:
+		return "🆓"
+	case 1:
+		return "1️⃣"
+	case 2:
+		return "2️⃣"
+	case 3:
+		return "3️⃣"
+	case 4:
+		return "4️⃣"
+	case 5:
+		return "5️⃣"
+	case 6:
+		return "6️⃣"
+	case 7:
+		return "7️⃣"
+	case 8:
+		return "8️⃣"
+	case Flag:
+		return "🚩"
+	case Bomb:
+		return "💣"
+	case Unknown:
+		return "❔"
+	default:
+		return string(t)
+	}
+}
 
 var tileHashes = map[uint64]Tile{
 	0x0000000000000000: OpenSpace, // OpenSpace OR Unknown tile
@@ -115,8 +149,13 @@ func (e engine) RightClick(x, y int) {
 }
 
 func (e engine) PrintField() {
+	var buf bytes.Buffer
 	for _, line := range e.field {
-		log.Println(line)
+		for _, tile := range line {
+			buf.WriteString(fmt.Sprintf("%s ", tile))
+		}
+		log.Println(buf.String())
+		buf.Reset()
 	}
 }
 
