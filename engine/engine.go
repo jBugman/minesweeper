@@ -7,6 +7,8 @@ import (
 	"log"
 	"os"
 
+	"github.com/jBugman/imghash"
+
 	"../macos"
 	"../macos/keycode"
 )
@@ -17,11 +19,30 @@ const (
 	footerHeight = 31
 )
 
+// Tile represents possible tile values
+type Tile uint8
+
+const (
+	OpenSpace Tile = 0
+	Flag      Tile = 32
+	Unknown   Tile = 255
+)
+
+var tileHashes = map[uint64]Tile{
+	0x0000000000000000: OpenSpace, // OpenSpace OR Unknown tile
+	0xFFC3C3E7E7E3E3FF: 1,
+	0xFFC3E3E7CFC3E3FF: 2,
+	0xFFE3C3C7E7C3E3FF: 3,
+	0xFFEFC3C3E3E7EFFF: 4,
+	// TODO other numbers
+	0xFFF7F7C3C381F3FF: Flag,
+}
+
 type engine struct {
 	x, y          int
 	width, height uint
 	windowID      int
-	field         [][]uint8
+	field         [][]Tile
 }
 
 // Engine provides public interface
@@ -55,8 +76,8 @@ func (e *engine) Start() error {
 	e.height = (winMeta.Bounds.Height() - headerHeight - footerHeight) / tileSize
 
 	// single-allocation method
-	e.field = make([][]uint8, e.height)
-	cells := make([]uint8, e.width*e.height)
+	e.field = make([][]Tile, e.height)
+	cells := make([]Tile, e.width*e.height)
 	for i := range e.field {
 		e.field[i], cells = cells[:e.width], cells[e.width:]
 	}
@@ -103,16 +124,37 @@ func rect(x0, y0, x1, y1 uint) image.Rectangle {
 	return image.Rect(int(x0), int(y0), int(x1), int(y1))
 }
 
-func (e engine) UpdateField() {
+func (e *engine) UpdateField() {
 	img := e.GrabScreen().(*image.RGBA)
 	saveImage("debug/field.png", img)
 	var i, j uint
 	for i = 0; i < e.width; i++ {
 		for j = 0; j < e.height; j++ {
 			tile := img.SubImage(rect(i*tileSize, j*tileSize+headerHeight, (i+1)*tileSize, (j+1)*tileSize+headerHeight))
-			saveImage(fmt.Sprintf("debug/test_%d_%d.png", i, j), tile)
+			tileValue := recognizeTile(tile)
+			e.field[j][i] = tileValue
 		}
 	}
+}
+
+func recognizeTile(tile image.Image) Tile {
+	hash := imghash.Average(tile)
+	value, ok := tileHashes[hash]
+	if !ok {
+		saveImage(fmt.Sprintf("debug/error_%X.png", hash), tile)
+		log.Fatalf("Unknown hash: %X\n", hash)
+	}
+	if value == 0 {
+		// tile is a subimage, so we need its offset
+		coords := tile.Bounds().Min
+		col := tile.(*image.RGBA).RGBAAt(coords.X+1, coords.Y+1)
+
+		avg := (uint(col.R) + uint(col.G) + uint(col.B)) / 3
+		if avg < 180 { // if it is more purple than white
+			value = Unknown
+		}
+	}
+	return value
 }
 
 func saveImage(filename string, img image.Image) {

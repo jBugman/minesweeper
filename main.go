@@ -15,11 +15,11 @@ func main() {
 
 	bot.StartGame()
 
-	bot.PrintField()
 	// Click in some random points
 	bot.LeftClick(6, 6)
 	bot.RightClick(0, 2)
 	bot.RightClick(3, 2)
 
 	bot.UpdateField()
+	bot.PrintField()
 }
