@@ -6,6 +6,7 @@ import (
 	"image"
 	"image/png"
 	"log"
+	"math/rand"
 	"os"
 
 	"github.com/jBugman/imghash"
@@ -69,8 +70,10 @@ var tileHashes = map[uint64]Tile{
 	0xFFE3C3C7E7C3E3FF: 3,
 	0xFFEFC3C3E3E7EFFF: 4,
 	0xFFE3C3CFE3E3E3FF: 5,
+	0xFFE7C3C3E3E3E7FF: 6,
 	// TODO other numbers
 	0xFFF7F7C3C381F3FF: Flag,
+	0xFFFFC3C3C3C3FFFF: Bomb,
 }
 
 type engine struct {
@@ -89,7 +92,8 @@ type Engine interface {
 	RightClick(x, y int)
 	PrintField()
 	UpdateField()
-	GameLoop()
+	GameLoop() bool
+	ClickRandomUnknown() bool
 }
 
 // NewEngine creates engine instance
@@ -132,7 +136,6 @@ func (e *engine) GrabScreen() image.Image {
 
 func (e engine) StartGame() {
 	macos.KeyPressWithModifier(keycode.KeyN, keycode.KeyCommand)
-	e.LeftClick(int(e.width/2), int(e.height/2)) // Start somewhere
 }
 
 func (e engine) tileCenterX(x int) int {
@@ -209,7 +212,7 @@ func saveImage(filename string, img image.Image) {
 }
 
 // GameLoop handles game logic and communication
-func (e *engine) GameLoop() {
+func (e *engine) GameLoop() bool {
 	var x, y int
 	for {
 		didSomething := false
@@ -218,6 +221,10 @@ func (e *engine) GameLoop() {
 		for y = 0; y < int(e.height); y++ {
 			for x = 0; x < int(e.width); x++ {
 				tile := e.field[y][x]
+				if tile == Bomb {
+					log.Println("😱 We ded. Starting again")
+					return false
+				}
 				log.Println(x, y, tile)
 				if tile < 1 || tile > 8 {
 					continue
@@ -253,10 +260,44 @@ func (e *engine) GameLoop() {
 			}
 		}
 		if !didSomething {
+			// TODO handle win
 			log.Println("🌀 Cannot decide what to do..")
-			break
+			if !e.ClickRandomUnknown() {
+				return false
+			}
 		}
 	}
+}
+
+func (e *engine) ClickRandomUnknown() bool {
+	var unknownCount int
+	for y := 0; y < int(e.height); y++ {
+		for x := 0; x < int(e.width); x++ {
+			tile := e.field[y][x]
+			if tile == Unknown {
+				unknownCount++
+			}
+		}
+	}
+	if unknownCount == 0 {
+		return false
+	}
+	randomIndex := rand.Intn(unknownCount)
+	unknownCount = 0
+	for y := 0; y < int(e.height); y++ {
+		for x := 0; x < int(e.width); x++ {
+			tile := e.field[y][x]
+			if tile == Unknown {
+				if unknownCount == randomIndex {
+					log.Println("❗️ Randomly clicking on", x, y)
+					e.LeftClick(x, y)
+					return true
+				}
+				unknownCount++
+			}
+		}
+	}
+	return false
 }
 
 func (e engine) getNeighbours(x0, y0 int) ([]Tile, []image.Point, int, int) {
