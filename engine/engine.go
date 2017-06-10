@@ -210,30 +210,30 @@ func saveImage(filename string, img image.Image) {
 
 // GameLoop handles game logic and communication
 func (e *engine) GameLoop() {
-	var i, j int
+	var x, y int
 	for {
 		didSomething := false
 		e.UpdateField()
 		e.PrintField()
-		for i = 0; i < int(e.width); i++ {
-			for j = 0; j < int(e.height); j++ {
-				tile := e.field[i][j]
-				log.Println(i, j, tile)
+		for y = 0; y < int(e.height); y++ {
+			for x = 0; x < int(e.width); x++ {
+				tile := e.field[y][x]
+				log.Println(x, y, tile)
 				if tile < 1 || tile > 8 {
 					continue
 				}
-				tiles, coords, unknownCount, flagCount := e.getNeighbours(i, j)
+				tiles, coords, unknownCount, flagCount := e.getNeighbours(x, y)
 				log.Println(tilesString(tiles))
 				// Marking flags
 				if unknownCount == int(tile)-flagCount {
 					for k := 0; k < len(coords); k++ {
 						c := coords[k]
-						t := e.field[c.X][c.Y]
+						t := e.field[c.Y][c.X]
 						if t == Unknown {
-							e.field[c.X][c.Y] = Flag
+							e.field[c.Y][c.X] = Flag
 							flagCount++
 							log.Println("Setting flag at", c.X, c.Y)
-							e.RightClick(c.Y, c.X)
+							e.RightClick(c.X, c.Y)
 							didSomething = true
 						}
 					}
@@ -242,10 +242,10 @@ func (e *engine) GameLoop() {
 				if unknownCount > 0 && int(tile) == flagCount {
 					for k := 0; k < len(coords); k++ {
 						c := coords[k]
-						t := e.field[c.X][c.Y]
+						t := e.field[c.Y][c.X]
 						if t == Unknown {
 							log.Println("Clicking on", c.X, c.Y)
-							e.LeftClick(c.Y, c.X)
+							e.LeftClick(c.X, c.Y)
 							didSomething = true
 						}
 					}
@@ -259,22 +259,22 @@ func (e *engine) GameLoop() {
 	}
 }
 
-func (e engine) getNeighbours(x, y int) ([]Tile, []image.Point, int, int) {
+func (e engine) getNeighbours(x0, y0 int) ([]Tile, []image.Point, int, int) {
 	var tiles = []Tile{}
 	var coords = []image.Point{}
 	var unknownCount, flagCount int
 	var tile Tile
-	for i := max(0, x-1); i < min(int(e.width), x+2); i++ {
-		for j := max(0, y-1); j < min(int(e.height), y+2); j++ {
-			if i != x || j != y {
-				tile = e.field[i][j]
+	for y := max(0, y0-1); y < min(int(e.height), y0+2); y++ {
+		for x := max(0, x0-1); x < min(int(e.width), x0+2); x++ {
+			if x != x0 || y != y0 {
+				tile = e.field[y][x]
 				if tile == Unknown {
 					unknownCount++
 				}
 				if tile == Flag {
 					flagCount++
 				}
-				coords = append(coords, image.Pt(i, j))
+				coords = append(coords, image.Pt(x, y))
 				tiles = append(tiles, tile)
 			}
 		}
