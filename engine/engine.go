@@ -16,10 +16,13 @@ import (
 )
 
 const (
-	tileSize     = 32 // 64px on retina
-	headerHeight = 22
-	footerHeight = 31
+	tileSize        = 32 // 64px on retina
+	headerHeight    = 22
+	footerHeight    = 31
+	restartMessageW = 214
+	restartMessageH = 32
 )
+const messageMask uint64 = 0x0300007E7E000000
 
 // Tile represents possible tile values
 type Tile uint8
@@ -77,10 +80,12 @@ var tileHashes = map[uint64]Tile{
 }
 
 type engine struct {
-	x, y          int
-	width, height uint
-	windowID      int
-	field         [][]Tile
+	x, y            int
+	width, height   uint
+	windowID        int
+	field           [][]Tile
+	restartMessageX uint
+	restartMessageY uint
 }
 
 // Engine provides public interface
@@ -91,7 +96,7 @@ type Engine interface {
 	LeftClick(x, y int)
 	RightClick(x, y int)
 	PrintField()
-	UpdateField()
+	UpdateField() bool
 	GameLoop() bool
 	ClickRandomUnknown() bool
 }
@@ -114,6 +119,9 @@ func (e *engine) Start() error {
 	e.y = winMeta.Bounds.Y() + headerHeight
 	e.width = winMeta.Bounds.Width() / tileSize
 	e.height = (winMeta.Bounds.Height() - headerHeight - footerHeight) / tileSize
+	e.restartMessageX = (winMeta.Bounds.Width() - restartMessageW) / 2
+	// e.restartMessageY = (e.height*tileSize + headerHeight) * 2 / 3
+	e.restartMessageY = uint(float32(winMeta.Bounds.Height()-headerHeight)*0.6875 - restartMessageH/2)
 
 	// single-allocation method
 	e.field = make([][]Tile, e.height)
@@ -172,24 +180,39 @@ func rect(x0, y0, x1, y1 uint) image.Rectangle {
 	return image.Rect(int(x0), int(y0), int(x1), int(y1))
 }
 
-func (e *engine) UpdateField() {
+func (e *engine) UpdateField() bool {
 	img := e.GrabScreen().(*image.RGBA)
 	saveImage("debug/field.png", img)
+	if e.checkRestartMessage(img) {
+		return true
+	}
 	var i, j uint
 	for i = 0; i < e.width; i++ {
 		for j = 0; j < e.height; j++ {
 			tile := img.SubImage(rect(i*tileSize, j*tileSize+headerHeight, (i+1)*tileSize, (j+1)*tileSize+headerHeight))
-			tileValue := recognizeTile(tile)
+			tileValue := e.recognizeTile(tile)
 			e.field[j][i] = tileValue
 		}
 	}
+	return false
 }
 
-func recognizeTile(tile image.Image) Tile {
+func (e engine) checkRestartMessage(img *image.RGBA) bool {
+	message := img.SubImage(rect(e.restartMessageX, e.restartMessageY, e.restartMessageX+restartMessageW, e.restartMessageY+restartMessageH))
+	hash := imghash.Average(message)
+	distance := imghash.Distance(messageMask, messageMask&hash)
+	log.Println("Message hash distance", distance)
+	return distance <= 3 // TODO check if 3 is enough
+}
+
+func (e engine) recognizeTile(tile image.Image) Tile {
 	hash := imghash.Average(tile)
 	value, ok := tileHashes[hash]
 	if !ok {
 		saveImage(fmt.Sprintf("debug/error_%X.png", hash), tile)
+
+		e.checkRestartMessage(e.GrabScreen().(*image.RGBA))
+
 		log.Fatalf("Unknown hash: %X\n", hash)
 	}
 	if value == 0 {
@@ -216,7 +239,11 @@ func (e *engine) GameLoop() bool {
 	var x, y int
 	for {
 		didSomething := false
-		e.UpdateField()
+		restartMessage := e.UpdateField()
+		if restartMessage {
+			log.Println("😆 Game ended in some way. Restarting")
+			return false // TODO handle win
+		}
 		e.PrintField()
 		for y = 0; y < int(e.height); y++ {
 			for x = 0; x < int(e.width); x++ {
