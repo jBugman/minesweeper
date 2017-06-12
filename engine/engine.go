@@ -244,7 +244,18 @@ func (e *engine) GameLoop() bool {
 		didSomething = false
 		err := e.UpdateField()
 		if e.bombCountHash == zeroBombsHash {
-			log.Println("🎉 Victory!") // TODO fix premature victory
+			log.Println("🤔 Should be victory but some tiles remain")
+			// Clicking on ramaining unknowns
+			for y = 0; y < int(e.height); y++ {
+				for x = 0; x < int(e.width); x++ {
+					t := e.field[y][x]
+					if t == Unknown {
+						log.Println("Clicking on", x, y)
+						e.LeftClick(x, y)
+					}
+				}
+			}
+			log.Println("🎉 Victory!")
 			return true
 		} else if err != nil {
 			// log.Fatal(err) // Assume that we know all useful hashes
