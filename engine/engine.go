@@ -2,6 +2,7 @@ package engine
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"image"
 	"image/png"
@@ -237,8 +238,9 @@ func saveImage(filename string, img image.Image) {
 // GameLoop handles game logic and communication
 func (e *engine) GameLoop() bool {
 	var x, y int
+	var didSomething bool
 	for {
-		didSomething := false
+		didSomething = false
 		restartMessage := e.UpdateField()
 		if restartMessage {
 			log.Println("😆 Game ended in some way. Restarting")
@@ -247,43 +249,12 @@ func (e *engine) GameLoop() bool {
 		e.PrintField()
 		for y = 0; y < int(e.height); y++ {
 			for x = 0; x < int(e.width); x++ {
-				tile := e.field[y][x]
-				if tile == Bomb {
-					log.Println("😱 We ded. Starting again")
+				useful, err := e.processTile(x, y)
+				if err != nil {
+					log.Println(err)
 					return false
 				}
-				log.Println(x, y, tile)
-				if tile < 1 || tile > 8 {
-					continue
-				}
-				tiles, coords, unknownCount, flagCount := e.getNeighbours(x, y)
-				log.Println(tilesString(tiles))
-				// Marking flags
-				if unknownCount == int(tile)-flagCount {
-					for k := 0; k < len(coords); k++ {
-						c := coords[k]
-						t := e.field[c.Y][c.X]
-						if t == Unknown {
-							e.field[c.Y][c.X] = Flag
-							flagCount++
-							log.Println("Setting flag at", c.X, c.Y)
-							e.RightClick(c.X, c.Y)
-							didSomething = true
-						}
-					}
-				}
-				// Clicking on safe unknowns
-				if unknownCount > 0 && int(tile) == flagCount {
-					for k := 0; k < len(coords); k++ {
-						c := coords[k]
-						t := e.field[c.Y][c.X]
-						if t == Unknown {
-							log.Println("Clicking on", c.X, c.Y)
-							e.LeftClick(c.X, c.Y)
-							didSomething = true
-						}
-					}
-				}
+				didSomething = didSomething || useful
 			}
 		}
 		if !didSomething {
@@ -294,6 +265,47 @@ func (e *engine) GameLoop() bool {
 			}
 		}
 	}
+}
+
+func (e *engine) processTile(x, y int) (bool, error) {
+	didSomething := false
+	tile := e.field[y][x]
+	if tile == Bomb {
+		return didSomething, errors.New("😱 We ded. Starting again")
+	}
+	log.Println(x, y, tile)
+	if tile < 1 || tile > 8 {
+		return didSomething, nil
+	}
+	tiles, coords, unknownCount, flagCount := e.getNeighbours(x, y)
+	log.Println(tilesString(tiles))
+	// Marking flags
+	if unknownCount == int(tile)-flagCount {
+		for k := 0; k < len(coords); k++ {
+			c := coords[k]
+			t := e.field[c.Y][c.X]
+			if t == Unknown {
+				e.field[c.Y][c.X] = Flag
+				flagCount++
+				log.Println("Setting flag at", c.X, c.Y)
+				e.RightClick(c.X, c.Y)
+				didSomething = true
+			}
+		}
+	}
+	// Clicking on safe unknowns
+	if unknownCount > 0 && int(tile) == flagCount {
+		for k := 0; k < len(coords); k++ {
+			c := coords[k]
+			t := e.field[c.Y][c.X]
+			if t == Unknown {
+				log.Println("Clicking on", c.X, c.Y)
+				e.LeftClick(c.X, c.Y)
+				didSomething = true
+			}
+		}
+	}
+	return didSomething, nil
 }
 
 func (e *engine) ClickRandomUnknown() bool {
