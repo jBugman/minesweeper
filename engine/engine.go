@@ -189,7 +189,17 @@ func (e *engine) UpdateField() error {
 	img := e.GrabScreen().(*image.RGBA)
 	saveImage("debug/field.png", img)
 
-	bombs := img.SubImage(rect(e.width*tileSize-20-16, e.height*tileSize+headerHeight+9, e.width*tileSize-20, e.height*tileSize+headerHeight+9+16))
+	const (
+		topMargin   = 9
+		rightMargin = 20
+		squareSize  = 16
+	)
+	bombs := img.SubImage(rect(
+		e.width*tileSize-rightMargin-squareSize,
+		e.height*tileSize+headerHeight+topMargin,
+		e.width*tileSize-rightMargin,
+		e.height*tileSize+headerHeight+topMargin+squareSize,
+	))
 	e.bombCountHash = ImageHash(imghash.Average(bombs))
 	// saveImage("debug/bombs.png", bombs)
 	// log.Printf("bomb hash: %X\n", e.bombCountHash)
