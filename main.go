@@ -28,6 +28,6 @@ func main() {
 			log.Println("Attempts remaining:", maxRetries)
 		} else {
 			break
-		
+		}
 	}
 }
