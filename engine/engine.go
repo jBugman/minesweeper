@@ -9,6 +9,7 @@ import (
 	"log"
 	"math/rand"
 	"os"
+	"time"
 
 	"github.com/jBugman/imghash"
 
@@ -94,6 +95,7 @@ type engine struct {
 	field         [][]Tile
 	timerHash     ImageHash
 	bombCountHash ImageHash
+	ClickDuration time.Duration
 }
 
 // Engine provides public interface
@@ -107,11 +109,12 @@ type Engine interface {
 	UpdateField(unknownsOnly bool) error
 	GameLoop() bool
 	ClickRandomUnknown() bool
+	SetClickDuration(duration time.Duration)
 }
 
 // NewEngine creates engine instance
 func NewEngine() Engine {
-	return &engine{}
+	return &engine{ClickDuration: macos.MouseClickDuration}
 }
 
 func (e *engine) Start() error {
@@ -141,6 +144,10 @@ func (e *engine) Start() error {
 	return nil
 }
 
+func (e *engine) SetClickDuration(duration time.Duration) {
+	e.ClickDuration = duration
+}
+
 func (e *engine) GrabScreen() image.Image {
 	img := macos.TakeScreenshot(e.windowID)
 	cropped := img.SubImage(rect(0, headerHeight, e.width*tileSize, headerHeight+e.height*tileSize+footerHeight))
@@ -165,11 +172,11 @@ func (e engine) tileCenterY(y int) int {
 }
 
 func (e engine) LeftClick(x, y int) {
-	macos.LeftClick(e.tileCenterX(x), e.tileCenterY(y))
+	macos.LeftClickT(e.tileCenterX(x), e.tileCenterY(y), e.ClickDuration)
 }
 
 func (e engine) RightClick(x, y int) {
-	macos.RightClick(e.tileCenterX(x), e.tileCenterY(y))
+	macos.RightClickT(e.tileCenterX(x), e.tileCenterY(y), e.ClickDuration)
 }
 
 func (e engine) PrintField() {
