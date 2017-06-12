@@ -13,10 +13,8 @@ func main() {
 		log.Fatal(err)
 	}
 
-	for {
-		success := bot.GameLoop()
-		if !success {
-			bot.StartGame()
-		}
+	var success bool
+	for !success {
+		success = bot.GameLoop()
 	}
 }

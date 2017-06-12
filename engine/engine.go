@@ -23,10 +23,16 @@ const (
 	restartMessageW = 214
 	restartMessageH = 32
 )
-const messageMask uint64 = 0x0300007E7E000000
+const (
+	messageMask   ImageHash = 0x0300007E7E000000
+	zeroBombsHash ImageHash = 0xFF8F2737373787CF
+)
 
 // Tile represents possible tile values
 type Tile uint8
+
+// ImageHash represents average image hash
+type ImageHash uint64
 
 // Special Tile values
 const (
@@ -67,7 +73,7 @@ func (t Tile) String() string {
 	}
 }
 
-var tileHashes = map[uint64]Tile{
+var tileHashes = map[ImageHash]Tile{
 	0x0000000000000000: OpenSpace, // OpenSpace OR Unknown tile
 	0xFFC3C3E7E7E3E3FF: 1,
 	0xFFC3E3E7CFC3E3FF: 2,
@@ -81,12 +87,12 @@ var tileHashes = map[uint64]Tile{
 }
 
 type engine struct {
-	x, y            int
-	width, height   uint
-	windowID        int
-	field           [][]Tile
-	restartMessageX uint
-	restartMessageY uint
+	x, y          int
+	width, height uint
+	windowID      int
+	field         [][]Tile
+	timerHash     ImageHash
+	bombCountHash ImageHash
 }
 
 // Engine provides public interface
@@ -97,7 +103,7 @@ type Engine interface {
 	LeftClick(x, y int)
 	RightClick(x, y int)
 	PrintField()
-	UpdateField() bool
+	UpdateField() error
 	GameLoop() bool
 	ClickRandomUnknown() bool
 }
@@ -120,9 +126,6 @@ func (e *engine) Start() error {
 	e.y = winMeta.Bounds.Y() + headerHeight
 	e.width = winMeta.Bounds.Width() / tileSize
 	e.height = (winMeta.Bounds.Height() - headerHeight - footerHeight) / tileSize
-	e.restartMessageX = (winMeta.Bounds.Width() - restartMessageW) / 2
-	// e.restartMessageY = (e.height*tileSize + headerHeight) * 2 / 3
-	e.restartMessageY = uint(float32(winMeta.Bounds.Height()-headerHeight)*0.6875 - restartMessageH/2)
 
 	// single-allocation method
 	e.field = make([][]Tile, e.height)
@@ -139,7 +142,7 @@ func (e *engine) Start() error {
 
 func (e *engine) GrabScreen() image.Image {
 	img := macos.TakeScreenshot(e.windowID)
-	cropped := img.SubImage(rect(0, headerHeight, e.width*tileSize, headerHeight+e.height*tileSize))
+	cropped := img.SubImage(rect(0, headerHeight, e.width*tileSize, headerHeight+e.height*tileSize+footerHeight))
 	return cropped
 }
 
@@ -181,40 +184,37 @@ func rect(x0, y0, x1, y1 uint) image.Rectangle {
 	return image.Rect(int(x0), int(y0), int(x1), int(y1))
 }
 
-func (e *engine) UpdateField() bool {
+func (e *engine) UpdateField() error {
 	img := e.GrabScreen().(*image.RGBA)
 	saveImage("debug/field.png", img)
-	if e.checkRestartMessage(img) {
-		return true
-	}
+
+	bombs := img.SubImage(rect(e.width*tileSize-20-16, e.height*tileSize+headerHeight+9, e.width*tileSize-20, e.height*tileSize+headerHeight+9+16))
+	e.bombCountHash = ImageHash(imghash.Average(bombs))
+	// saveImage("debug/bombs.png", bombs)
+	// log.Printf("bomb hash: %X\n", e.bombCountHash)
+
 	var i, j uint
+	var err error
+	var tileValue Tile
 	for i = 0; i < e.width; i++ {
 		for j = 0; j < e.height; j++ {
 			tile := img.SubImage(rect(i*tileSize, j*tileSize+headerHeight, (i+1)*tileSize, (j+1)*tileSize+headerHeight))
-			tileValue := e.recognizeTile(tile)
+			tileValue, err = e.recognizeTile(tile)
+			if err != nil {
+				return err
+			}
 			e.field[j][i] = tileValue
 		}
 	}
-	return false
+	return nil
 }
 
-func (e engine) checkRestartMessage(img *image.RGBA) bool {
-	message := img.SubImage(rect(e.restartMessageX, e.restartMessageY, e.restartMessageX+restartMessageW, e.restartMessageY+restartMessageH))
-	hash := imghash.Average(message)
-	distance := imghash.Distance(messageMask, messageMask&hash)
-	log.Println("Message hash distance", distance)
-	return distance <= 3 // TODO check if 3 is enough
-}
-
-func (e engine) recognizeTile(tile image.Image) Tile {
-	hash := imghash.Average(tile)
+func (e engine) recognizeTile(tile image.Image) (Tile, error) {
+	hash := ImageHash(imghash.Average(tile))
 	value, ok := tileHashes[hash]
 	if !ok {
 		saveImage(fmt.Sprintf("debug/error_%X.png", hash), tile)
-
-		e.checkRestartMessage(e.GrabScreen().(*image.RGBA))
-
-		log.Fatalf("Unknown hash: %X\n", hash)
+		return Unknown, fmt.Errorf("Unknown hash: %X\n", hash)
 	}
 	if value == 0 {
 		// tile is a subimage, so we need its offset
@@ -226,7 +226,7 @@ func (e engine) recognizeTile(tile image.Image) Tile {
 			value = Unknown
 		}
 	}
-	return value
+	return value, nil
 }
 
 func saveImage(filename string, img image.Image) {
@@ -241,10 +241,14 @@ func (e *engine) GameLoop() bool {
 	var didSomething bool
 	for {
 		didSomething = false
-		restartMessage := e.UpdateField()
-		if restartMessage {
-			log.Println("😆 Game ended in some way. Restarting")
-			return false // TODO handle win
+		err := e.UpdateField()
+		if e.bombCountHash == zeroBombsHash {
+			log.Println("🎉 Victory!") // TODO fix premature victory
+			return true
+		} else if err != nil {
+			// log.Fatal(err) // Assume that we know all useful hashes
+			log.Println("💣 Boom!")
+			return false
 		}
 		e.PrintField()
 		for y = 0; y < int(e.height); y++ {
@@ -258,7 +262,6 @@ func (e *engine) GameLoop() bool {
 			}
 		}
 		if !didSomething {
-			// TODO handle win
 			log.Println("🌀 Cannot decide what to do..")
 			if !e.ClickRandomUnknown() {
 				return false
@@ -271,7 +274,7 @@ func (e *engine) processTile(x, y int) (bool, error) {
 	didSomething := false
 	tile := e.field[y][x]
 	if tile == Bomb {
-		return didSomething, errors.New("😱 We ded. Starting again")
+		return didSomething, errors.New("😱 Bombs on the field! Starting again")
 	}
 	log.Println(x, y, tile)
 	if tile < 1 || tile > 8 {
