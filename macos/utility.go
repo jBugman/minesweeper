@@ -73,31 +73,42 @@ func TakeScreenshot(windowID int) *image.RGBA { // TODO handle errors
 	return &image.RGBA{Pix: pixels, Stride: bytesPerRow, Rect: image.Rect(0, 0, width, height)}
 }
 
+// Delays between 'down' and 'up' mouse and keyboard events
 const (
-	mouseClickDuration = 75 * time.Millisecond
+	MouseClickDuration = 75 * time.Millisecond
 	keyPressDuration   = 20 * time.Millisecond
 )
 
 // LeftClick does that it sounds
 func LeftClick(x, y int) {
-	genericClick(C.kCGEventLeftMouseDown, C.kCGEventLeftMouseUp, C.kCGMouseButtonLeft, x, y)
+	LeftClickT(x, y, MouseClickDuration)
+}
+
+// LeftClickT is a LeftClick with a custom delay
+func LeftClickT(x, y int, delay time.Duration) {
+	genericClick(C.kCGEventLeftMouseDown, C.kCGEventLeftMouseUp, C.kCGMouseButtonLeft, x, y, delay)
 }
 
 // RightClick does that it sounds
 func RightClick(x, y int) {
-	genericClick(C.kCGEventRightMouseDown, C.kCGEventRightMouseUp, C.kCGMouseButtonRight, x, y)
+	RightClickT(x, y, MouseClickDuration)
 }
 
-func genericClick(downEventType, upEventType C.CGEventType, button C.CGMouseButton, x, y int) {
+// RightClickT is a RightClick with a custom delay
+func RightClickT(x, y int, delay time.Duration) {
+	genericClick(C.kCGEventRightMouseDown, C.kCGEventRightMouseUp, C.kCGMouseButtonRight, x, y, MouseClickDuration)
+}
+
+func genericClick(downEventType, upEventType C.CGEventType, button C.CGMouseButton, x, y int, duration time.Duration) {
 	point := C.CGPointMake(C.CGFloat(x), C.CGFloat(y))
 	downEvent := CoreGraphics.CreateMouseEvent(downEventType, point, button)
 	upEvent := CoreGraphics.CreateMouseEvent(upEventType, point, button)
 	defer releaseEvent(downEvent)
 	defer releaseEvent(upEvent)
 	C.CGEventPost(C.kCGHIDEventTap, downEvent)
-	time.Sleep(mouseClickDuration)
+	time.Sleep(duration)
 	C.CGEventPost(C.kCGHIDEventTap, upEvent)
-	time.Sleep(mouseClickDuration)
+	time.Sleep(duration)
 }
 
 // KeyPress emulates keyboard key press
