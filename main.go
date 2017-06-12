@@ -16,6 +16,8 @@ func main() {
 	maxRetries := 5
 	var success bool
 	for !success {
+		bot.StartGame()
+
 		success = bot.GameLoop()
 		if success {
 			break
@@ -24,9 +26,8 @@ func main() {
 		maxRetries--
 		if maxRetries > 0 {
 			log.Println("Attempts remaining:", maxRetries)
-			bot.StartGame()
 		} else {
 			break
-		}
+		
 	}
 }
