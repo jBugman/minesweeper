@@ -36,16 +36,16 @@ type ImageHash uint64
 
 // Special Tile values
 const (
-	OpenSpace Tile = 0
+	Unknown   Tile = 0
 	Flag      Tile = 32
 	Bomb      Tile = 64
-	Unknown   Tile = 255
+	OpenSpace Tile = 255
 )
 
 func (t Tile) String() string {
 	switch t {
-	case 0:
-		return "🆓"
+	case Unknown:
+		return "❔"
 	case 1:
 		return "1️⃣"
 	case 2:
@@ -66,15 +66,15 @@ func (t Tile) String() string {
 		return "🚩"
 	case Bomb:
 		return "💣"
-	case Unknown:
-		return "❔"
+	case OpenSpace:
+		return "🆓"
 	default:
 		return string(t)
 	}
 }
 
 var tileHashes = map[ImageHash]Tile{
-	0x0000000000000000: OpenSpace, // OpenSpace OR Unknown tile
+	0x0000000000000000: Unknown, // Unknown tile (or maybe OpenSpace before colour check)
 	0xFFC3C3E7E7E3E3FF: 1,
 	0xFFC3E3E7CFC3E3FF: 2,
 	0xFFE3C3C7E7C3E3FF: 3,
@@ -104,7 +104,7 @@ type Engine interface {
 	LeftClick(x, y int)
 	RightClick(x, y int)
 	PrintField()
-	UpdateField() error
+	UpdateField(unknownsOnly bool) error
 	GameLoop() bool
 	ClickRandomUnknown() bool
 }
@@ -149,6 +149,11 @@ func (e *engine) GrabScreen() image.Image {
 
 func (e engine) StartGame() {
 	macos.KeyPressWithModifier(keycode.KeyN, keycode.KeyCommand)
+	for y := 0; y < int(e.height); y++ {
+		for x := 0; x < int(e.width); x++ {
+			e.field[y][x] = Unknown
+		}
+	}
 }
 
 func (e engine) tileCenterX(x int) int {
@@ -185,7 +190,7 @@ func rect(x0, y0, x1, y1 uint) image.Rectangle {
 	return image.Rect(int(x0), int(y0), int(x1), int(y1))
 }
 
-func (e *engine) UpdateField() error {
+func (e *engine) UpdateField(unknownsOnly bool) error {
 	img := e.GrabScreen().(*image.RGBA)
 	saveImage("debug/field.png", img)
 
@@ -204,17 +209,21 @@ func (e *engine) UpdateField() error {
 	// saveImage("debug/bombs.png", bombs)
 	// log.Printf("bomb hash: %X\n", e.bombCountHash)
 
-	var i, j uint
+	var x, y uint
 	var err error
 	var tileValue Tile
-	for i = 0; i < e.width; i++ {
-		for j = 0; j < e.height; j++ {
-			tile := img.SubImage(rect(i*tileSize, j*tileSize+headerHeight, (i+1)*tileSize, (j+1)*tileSize+headerHeight))
+	for y = 0; y < e.height; y++ {
+		for x = 0; x < e.width; x++ {
+			skip := unknownsOnly && e.field[y][x] != Unknown
+			if skip {
+				continue
+			}
+			tile := img.SubImage(rect(x*tileSize, y*tileSize+headerHeight, (x+1)*tileSize, (y+1)*tileSize+headerHeight))
 			tileValue, err = e.recognizeTile(tile)
 			if err != nil {
 				return err
 			}
-			e.field[j][i] = tileValue
+			e.field[y][x] = tileValue
 		}
 	}
 	return nil
@@ -227,7 +236,7 @@ func (e engine) recognizeTile(tile image.Image) (Tile, error) {
 		saveImage(fmt.Sprintf("debug/error_%X.png", hash), tile)
 		return Unknown, fmt.Errorf("Unknown hash: %X\n", hash)
 	}
-	if value == 0 {
+	if value == Unknown {
 		// tile is a subimage, so we need its offset
 		coords := tile.Bounds().Min
 		col := tile.(*image.RGBA).RGBAAt(coords.X+1, coords.Y+1)
@@ -235,6 +244,8 @@ func (e engine) recognizeTile(tile image.Image) (Tile, error) {
 		avg := (uint(col.R) + uint(col.G) + uint(col.B)) / 3
 		if avg < 180 { // if it is more purple than white
 			value = Unknown
+		} else {
+			value = OpenSpace
 		}
 	}
 	return value, nil
@@ -253,7 +264,7 @@ func (e *engine) GameLoop() bool {
 	var err error
 	for {
 		didSomething = false
-		err = e.UpdateField()
+		err = e.UpdateField(true)
 		if e.bombCountHash == zeroBombsHash {
 			log.Println("🤔 Should be victory but some tiles may remain")
 			// Clicking on ramaining unknowns
@@ -286,6 +297,7 @@ func (e *engine) GameLoop() bool {
 		if !didSomething {
 			log.Println("🌀 Cannot decide what to do..")
 			if !e.ClickRandomUnknown() {
+				log.Println("🤗 There is no unknowns to click on..")
 				return false
 			}
 		}
