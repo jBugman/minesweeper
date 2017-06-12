@@ -304,6 +304,7 @@ func (e *engine) processTile(x, y int) (bool, error) {
 	_, coords, unknownCount, flagCount := e.getNeighbours(x, y)
 	// log.Println(tilesString(tiles))
 	// Marking flags
+	var flagged bool
 	if unknownCount == int(tile)-flagCount {
 		for k := 0; k < len(coords); k++ {
 			c := coords[k]
@@ -313,9 +314,12 @@ func (e *engine) processTile(x, y int) (bool, error) {
 				flagCount++
 				log.Println("Setting flag at", c.X, c.Y)
 				e.RightClick(c.X, c.Y)
-				return true, nil
+				flagged = true
 			}
 		}
+	}
+	if flagged {
+		return true, nil
 	}
 	// Clicking on safe unknowns
 	if unknownCount > 0 && int(tile) == flagCount {
