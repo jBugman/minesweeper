@@ -250,11 +250,12 @@ func saveImage(filename string, img image.Image) {
 func (e *engine) GameLoop() bool {
 	var x, y int
 	var didSomething bool
+	var err error
 	for {
 		didSomething = false
-		err := e.UpdateField()
+		err = e.UpdateField()
 		if e.bombCountHash == zeroBombsHash {
-			log.Println("🤔 Should be victory but some tiles remain")
+			log.Println("🤔 Should be victory but some tiles may remain")
 			// Clicking on ramaining unknowns
 			for y = 0; y < int(e.height); y++ {
 				for x = 0; x < int(e.width); x++ {
@@ -273,14 +274,13 @@ func (e *engine) GameLoop() bool {
 			return false
 		}
 		e.PrintField()
-		for y = 0; y < int(e.height); y++ {
-			for x = 0; x < int(e.width); x++ {
-				useful, err := e.processTile(x, y)
+		for y = 0; y < int(e.height) && !didSomething; y++ {
+			for x = 0; x < int(e.width) && !didSomething; x++ {
+				didSomething, err = e.processTile(x, y)
 				if err != nil {
 					log.Println(err)
 					return false
 				}
-				didSomething = didSomething || useful
 			}
 		}
 		if !didSomething {
@@ -293,17 +293,16 @@ func (e *engine) GameLoop() bool {
 }
 
 func (e *engine) processTile(x, y int) (bool, error) {
-	didSomething := false
 	tile := e.field[y][x]
 	if tile == Bomb {
-		return didSomething, errors.New("😱 Bombs on the field! Starting again")
+		return false, errors.New("😱 Bombs on the field! Starting again")
 	}
-	log.Println(x, y, tile)
+	// log.Println(x, y, tile)
 	if tile < 1 || tile > 8 {
-		return didSomething, nil
+		return false, nil
 	}
-	tiles, coords, unknownCount, flagCount := e.getNeighbours(x, y)
-	log.Println(tilesString(tiles))
+	_, coords, unknownCount, flagCount := e.getNeighbours(x, y)
+	// log.Println(tilesString(tiles))
 	// Marking flags
 	if unknownCount == int(tile)-flagCount {
 		for k := 0; k < len(coords); k++ {
@@ -314,7 +313,7 @@ func (e *engine) processTile(x, y int) (bool, error) {
 				flagCount++
 				log.Println("Setting flag at", c.X, c.Y)
 				e.RightClick(c.X, c.Y)
-				didSomething = true
+				return true, nil
 			}
 		}
 	}
@@ -326,11 +325,11 @@ func (e *engine) processTile(x, y int) (bool, error) {
 			if t == Unknown {
 				log.Println("Clicking on", c.X, c.Y)
 				e.LeftClick(c.X, c.Y)
-				didSomething = true
+				return true, nil
 			}
 		}
 	}
-	return didSomething, nil
+	return false, nil
 }
 
 func (e *engine) ClickRandomUnknown() bool {
